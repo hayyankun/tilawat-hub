@@ -1,25 +1,38 @@
-const Alexa = require('ask-sdk-core');
+const express = require("express");
+const bodyParser = require("body-parser");
+const Alexa = require("ask-sdk-core");
 
-// List of Yasser Al-Dosari's recitations from MP3Quran
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware to parse JSON requests
+app.use(bodyParser.json());
+
+// ✅ Test Route to check if the server is running
+app.get("/", (req, res) => {
+    res.send("Tilawat Hub Backend is Running!");
+});
+
+// ✅ List of Yasser Al-Dosari's recitations from MP3Quran
 const surahList = [
-    "https://server10.mp3quran.net/yasser/001.mp3",  // Surah Al-Fatiha
-    "https://server10.mp3quran.net/yasser/002.mp3",  // Surah Al-Baqarah
-    "https://server10.mp3quran.net/yasser/003.mp3",  // Surah Aal-E-Imran
-    "https://server10.mp3quran.net/yasser/004.mp3",  // Surah An-Nisa
-    "https://server10.mp3quran.net/yasser/005.mp3",  // Surah Al-Ma'idah
-    "https://server10.mp3quran.net/yasser/006.mp3",  // Surah Al-An'am
-    "https://server10.mp3quran.net/yasser/007.mp3",  // Surah Al-A'raf
-    "https://server10.mp3quran.net/yasser/008.mp3",  // Surah Al-Anfal
-    "https://server10.mp3quran.net/yasser/009.mp3",  // Surah At-Tawbah
-    "https://server10.mp3quran.net/yasser/010.mp3"   // Surah Yunus
+    "https://server10.mp3quran.net/yasser/001.mp3",
+    "https://server10.mp3quran.net/yasser/002.mp3",
+    "https://server10.mp3quran.net/yasser/003.mp3",
+    "https://server10.mp3quran.net/yasser/004.mp3",
+    "https://server10.mp3quran.net/yasser/005.mp3",
+    "https://server10.mp3quran.net/yasser/006.mp3",
+    "https://server10.mp3quran.net/yasser/007.mp3",
+    "https://server10.mp3quran.net/yasser/008.mp3",
+    "https://server10.mp3quran.net/yasser/009.mp3",
+    "https://server10.mp3quran.net/yasser/010.mp3"
 ];
 
-// Function to get a random Surah
+// ✅ Function to get a random Surah
 function getRandomSurah() {
     return surahList[Math.floor(Math.random() * surahList.length)];
 }
 
-// Handler for the PlayRandomQuranIntent
+// ✅ Alexa Skill Handlers
 const PlayRandomQuranHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
@@ -29,6 +42,7 @@ const PlayRandomQuranHandler = {
         const surahUrl = getRandomSurah();
 
         return handlerInput.responseBuilder
+            .speak("Playing a random Surah.")
             .addDirective({
                 type: 'AudioPlayer.Play',
                 playBehavior: 'REPLACE_ALL',
@@ -44,7 +58,7 @@ const PlayRandomQuranHandler = {
     }
 };
 
-// Stop the audio
+// ✅ Stop Intent Handler
 const StopHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
@@ -61,7 +75,7 @@ const StopHandler = {
     }
 };
 
-// Error Handling
+// ✅ Error Handler
 const ErrorHandler = {
     canHandle() {
         return true;
@@ -69,16 +83,32 @@ const ErrorHandler = {
     handle(handlerInput, error) {
         console.log(`Error: ${error.message}`);
         return handlerInput.responseBuilder
-            .speak("Sorry, there was an error. Please try again later.")
+            .speak("Sorry, an error occurred. Please try again later.")
             .getResponse();
     }
 };
 
-// Skill Builder
-exports.handler = Alexa.SkillBuilders.custom()
+// ✅ Alexa Handler Function
+const skill = Alexa.SkillBuilders.custom()
     .addRequestHandlers(
         PlayRandomQuranHandler,
         StopHandler
     )
     .addErrorHandlers(ErrorHandler)
-    .lambda();
+    .create();
+
+// ✅ POST Route for Alexa Skill
+app.post("/alexa", async (req, res) => {
+    try {
+        const response = await skill.invoke(req.body);
+        res.json(response);
+    } catch (error) {
+        console.error("Alexa Skill Error:", error);
+        res.status(500).send("Internal Server Error");
+    }
+});
+
+// ✅ Start Server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
