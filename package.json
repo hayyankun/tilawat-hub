@@ -1,0 +1,13 @@
+{
+  "name": "tilawat-hub",
+  "version": "1.0.0",
+  "description": "An Alexa skill to play random Surahs from Quran",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0"
+  }
+}
