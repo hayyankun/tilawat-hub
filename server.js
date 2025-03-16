@@ -1,26 +1,54 @@
-const express = require("express");
-const bodyParser = require("body-parser");
+const express = require('express');
+const axios = require('axios');
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-app.post("/", (req, res) => {
-    console.log("Request received:", JSON.stringify(req.body, null, 2));
+const RECITER_ID = 8; // Yasser Al-Dosari
 
-    res.json({
-        version: "1.0",
-        response: {
-            outputSpeech: {
-                type: "PlainText",
-                text: "Playing a random Surah.",
-            },
-            shouldEndSession: false,
-        },
-    });
-});
+app.post('/', async (req, res) => {
+    try {
+        const randomSurah = Math.floor(Math.random() * 114) + 1; // Random Surah (1-114)
+        
+        // Fetch audio file from Quran.com API
+        const response = await axios.get(`https://api.quran.com/api/v4/chapter_recitations/${RECITER_ID}/${randomSurah}`);
+        
+        if (!response.data.audio_file) {
+            return res.json({
+                response: {
+                    outputSpeech: {
+                        type: "PlainText",
+                        text: "Sorry, I couldn't find the surah audio."
+                    },
+                    shouldEndSession: true
+                }
+            });
+        }
 
-app.get("/", (req, res) => {
-    res.send("Tilawat Hub Backend is running!");
+        const audioUrl = response.data.audio_file.audio_url;
+
+        return res.json({
+            response: {
+                outputSpeech: {
+                    type: "SSML",
+                    ssml: `<speak>Playing Surah number ${randomSurah} by Yasser Al-Dosari. <audio src="${audioUrl}" /></speak>`
+                },
+                shouldEndSession: true
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.json({
+            response: {
+                outputSpeech: {
+                    type: "PlainText",
+                    text: "There was an error fetching the surah. Please try again later."
+                },
+                shouldEndSession: true
+            }
+        });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
