@@ -1,55 +1,84 @@
-const express = require('express');
-const axios = require('axios');
+const Alexa = require('ask-sdk-core');
 
-const app = express();
-app.use(express.json());
+// List of Yasser Al-Dosari's recitations from MP3Quran
+const surahList = [
+    "https://server10.mp3quran.net/yasser/001.mp3",  // Surah Al-Fatiha
+    "https://server10.mp3quran.net/yasser/002.mp3",  // Surah Al-Baqarah
+    "https://server10.mp3quran.net/yasser/003.mp3",  // Surah Aal-E-Imran
+    "https://server10.mp3quran.net/yasser/004.mp3",  // Surah An-Nisa
+    "https://server10.mp3quran.net/yasser/005.mp3",  // Surah Al-Ma'idah
+    "https://server10.mp3quran.net/yasser/006.mp3",  // Surah Al-An'am
+    "https://server10.mp3quran.net/yasser/007.mp3",  // Surah Al-A'raf
+    "https://server10.mp3quran.net/yasser/008.mp3",  // Surah Al-Anfal
+    "https://server10.mp3quran.net/yasser/009.mp3",  // Surah At-Tawbah
+    "https://server10.mp3quran.net/yasser/010.mp3"   // Surah Yunus
+];
 
-const RECITER_ID = 8; // Yasser Al-Dosari
+// Function to get a random Surah
+function getRandomSurah() {
+    return surahList[Math.floor(Math.random() * surahList.length)];
+}
 
-app.post('/', async (req, res) => {
-    try {
-        const randomSurah = Math.floor(Math.random() * 114) + 1; // Random Surah (1-114)
-        
-        // Fetch audio file from Quran.com API
-        const response = await axios.get(`https://api.quran.com/api/v4/chapter_recitations/${RECITER_ID}/${randomSurah}`);
-        
-        if (!response.data.audio_file) {
-            return res.json({
-                response: {
-                    outputSpeech: {
-                        type: "PlainText",
-                        text: "Sorry, I couldn't find the surah audio."
-                    },
-                    shouldEndSession: true
+// Handler for the PlayRandomQuranIntent
+const PlayRandomQuranHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+               Alexa.getIntentName(handlerInput.requestEnvelope) === 'PlayRandomQuranIntent';
+    },
+    handle(handlerInput) {
+        const surahUrl = getRandomSurah();
+
+        return handlerInput.responseBuilder
+            .addDirective({
+                type: 'AudioPlayer.Play',
+                playBehavior: 'REPLACE_ALL',
+                audioItem: {
+                    stream: {
+                        url: surahUrl,
+                        token: "random_surah",
+                        offsetInMilliseconds: 0
+                    }
                 }
-            });
-        }
-
-        const audioUrl = response.data.audio_file.audio_url;
-
-        return res.json({
-            response: {
-                outputSpeech: {
-                    type: "SSML",
-                    ssml: `<speak>Playing Surah number ${randomSurah} by Yasser Al-Dosari. <audio src="${audioUrl}" /></speak>`
-                },
-                shouldEndSession: true
-            }
-        });
-
-    } catch (error) {
-        console.error(error);
-        return res.json({
-            response: {
-                outputSpeech: {
-                    type: "PlainText",
-                    text: "There was an error fetching the surah. Please try again later."
-                },
-                shouldEndSession: true
-            }
-        });
+            })
+            .getResponse();
     }
-});
+};
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Stop the audio
+const StopHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+               (Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.StopIntent' ||
+                Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.CancelIntent' ||
+                Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.PauseIntent');
+    },
+    handle(handlerInput) {
+        return handlerInput.responseBuilder
+            .addDirective({
+                type: 'AudioPlayer.Stop'
+            })
+            .getResponse();
+    }
+};
+
+// Error Handling
+const ErrorHandler = {
+    canHandle() {
+        return true;
+    },
+    handle(handlerInput, error) {
+        console.log(`Error: ${error.message}`);
+        return handlerInput.responseBuilder
+            .speak("Sorry, there was an error. Please try again later.")
+            .getResponse();
+    }
+};
+
+// Skill Builder
+exports.handler = Alexa.SkillBuilders.custom()
+    .addRequestHandlers(
+        PlayRandomQuranHandler,
+        StopHandler
+    )
+    .addErrorHandlers(ErrorHandler)
+    .lambda();
